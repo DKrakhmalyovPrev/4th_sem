@@ -2,8 +2,8 @@
 #include <thread>
 #include <vector>
 #include <mutex>
+#include <atomic>
 
-int j = 0;
 std::mutex mut;
 std::recursive_mutex recMut;
 
@@ -23,14 +23,43 @@ void recursiveFunc(int depth)
 //	recMut.unlock();
 
 }
+class CMyLock{
+public:
+	CMyLock() 
+	{
+		ticketCounter.store(0); 
+		tableu.store(0);
+	};
+	void lock()
+	{ 
+		int ticket = ticketCounter++; 
+		while (ticket != tableu.load())
+		{
+			std::this_thread::yield();
+		}
+	}
+	void unlock()
+	{ 
+		tableu++; 
+	}
+
+private:
+	std::atomic_int ticketCounter;
+	std::atomic_int tableu;
+};
+
+std:: atomic<int> j(0);
+std:: atomic_flag flag;
+std::atomic<bool> atomBool;
+std::atomic_bool atomBool2;
 
 void func()
 {
-	for (int i = 0; i < 1000; i++)
-	{
-		recursiveFunc(5);
-	}
-}
+	
+//	j.is_lock_free();
+	for (int i = 0; i < 100000; i++)
+		j.fetch_add(1);
+}	
 
 
 int main()
@@ -47,7 +76,7 @@ int main()
 		threads[i].join();
 	}
 
-	std::cout << j;
+	std::cout << j.load();
 //	std::thread obj(func);
 //	obj.detach(); // Поток не генерит исключения, уходит в свободное плавание
 	//obj.join(); //Прерывает поток, пока текущий не завершится
