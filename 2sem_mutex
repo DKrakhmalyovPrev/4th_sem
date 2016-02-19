@@ -1,0 +1,56 @@
+#include <iostream>
+#include <thread>
+#include <vector>
+#include <mutex>
+
+int j = 0;
+std::mutex mut;
+std::recursive_mutex recMut;
+
+
+void recursiveFunc(int depth)
+{
+	std::unique_lock<std::recursive_mutex> guard(recMut, std::defer_lock_t());
+	while (!guard.try_lock())
+	{
+		//do sth;
+	}
+//	std::lock_guard<std::recursive_mutex> guard(recMut);
+//	recMut.lock();
+	std::cout << " depth" << depth;
+	if (depth >0)
+		recursiveFunc(depth - 1);
+//	recMut.unlock();
+
+}
+
+void func()
+{
+	for (int i = 0; i < 1000; i++)
+	{
+		recursiveFunc(5);
+	}
+}
+
+
+int main()
+{
+
+	std::vector< std::thread > threads;
+	for (int i = 0; i < 2; i++)
+	{
+		threads.emplace_back(func);
+	}
+
+	for (int i = 0; i < threads.size(); i++)
+	{
+		threads[i].join();
+	}
+
+	std::cout << j;
+//	std::thread obj(func);
+//	obj.detach(); // Поток не генерит исключения, уходит в свободное плавание
+	//obj.join(); //Прерывает поток, пока текущий не завершится
+
+	return 0;
+}
