@@ -1,0 +1,64 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include<stdio.h>
+#include<stdlib.h>
+#include<time.h>
+#include <thread>
+#include <vector>
+#include <mutex>
+#include <atomic>
+#include <future>
+
+void swap(int*a, int*b){
+	int c;
+	c = *a;
+	*a = *b;
+	*b = c;
+}
+
+int partition(int *s, int l, int r){
+	int i = l - 1;
+	int j = r - 1;
+	int x = s[l];
+	while (i<j){
+		do { ++i; } while (s[i] < x);
+		while (x < s[--j])
+			if (j == l) break;
+		if (j == i) break;
+		swap(&s[i], &s[j]);
+	}
+	swap(&s[i], &s[l]);
+	return(i);
+}
+
+
+
+void qSort(int *s, int l, int r){
+	if (r < l + 10)
+	{
+		std::sort(s + l, s + r);
+	}
+	else
+	if (r>l + 1){
+		int q = partition(s, l, r);
+		std::future<void> fut = std::async(std::launch::async , qSort, s, l, q);
+		std::future<void> fut2 = std::async(std::launch::deferred, qSort, s, q + 1, r);
+		fut2.get();
+		fut.get();
+		
+	};
+}
+
+int main(){
+	int  b,  n = 100, f;
+	clock_t start = clock();
+	int *s = (int*)malloc(n * sizeof(int));
+	srand((unsigned int)time(NULL));
+	for (b = 0; b < n; b++)
+		s[b] = rand() % 50000;
+	qSort(s, 0, n);
+	start = clock() - start;
+	for (f = 0; f < n; f++)
+		printf("%i ", s[f]);
+	printf("\n %f \n", (double)start / CLOCKS_PER_SEC);
+	return(0);
+}
