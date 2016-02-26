@@ -1,0 +1,49 @@
+#include <iostream>
+#include <thread>
+#include <vector>
+#include <mutex>
+#include <atomic>
+#include <future>
+
+void func(std::promise<int> x)
+{
+	x.set_value(10);
+	//x.set_value_at_thread_exit(10); //Возвращает тогда, когда кончается поток
+	// x.set_exception(std:: current_exception()) //Возвращает исключение во время гета, юзать с трай-кетч  
+}
+
+int f()
+{
+	while (true)
+	{
+		std::this_thread::sleep_for(std::chrono::seconds() * 1);
+	}
+	return 0;
+}
+
+int main()
+{
+
+	/*std::packaged_task<int(int)> task([](int x) {return x + 10; });
+
+	std::future<int> fut = task.get_future();
+	std::thread th(std::move(task), 5);
+	std::cout << fut.get() << std::endl;
+	th.join();*/
+
+	/*
+	std::promise<int> prom;
+	std::future<int> fut = prom.get_future();
+	std::thread th(func, std::move(prom));
+	std::shared_future<int> shared = fut.share();//Если ждём из двух потоков -- расшариваем, его можно копировать
+	std::cout << shared.get() << std::endl;
+	th.join(); */
+
+	/*std::future<int> fut = std::async(std::launch::async | std::launch::deferred, [](int x) {return x + 10; }, 5);
+	std::cout << fut.get() << std::endl;*/
+
+	/*std::future<int> fut = std::async(std::launch::async, f);*/
+
+
+	return 0;
+}
