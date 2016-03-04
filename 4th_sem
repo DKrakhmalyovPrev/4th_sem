@@ -1,0 +1,75 @@
+#include<iostream>
+#include<stack>
+#include<mutex>
+#include <condition_variable>
+
+
+template<typename T>
+class CMyStack
+{
+public:
+	CMyStack();
+	void push(const T& obj)
+	{
+		//RAII
+		//std::lock_guard<std::mutex> lock(mut);
+		std::unique_lock<std::mutex> lock(mut, std::defer_lock_t());
+		intern.push( obj );
+		lock.unlock();
+		condVar.notify_one();
+	};
+
+	std::unique_ptr<T> wait_pop()
+	{
+		std::unique_lock<std::mutex> lock(mut);
+		if (intern.size > 0)
+		{
+
+			std::unique_ptr<T> result = new T(intern.top());
+			interm.pop();
+			return(result);
+		}
+		else
+		{
+			while (true)
+			{
+				//lock.unlock();
+				condVar.wait(lock, [](){return intern.size() > 0; });
+				//lock.lock();
+					std::unique_ptr<T> result = new T(intern.top());
+					intern.pop();
+					return(result);
+				
+			}
+		}
+		
+	};
+	//std::pair<T,bool> try_pop();
+	//std::unique_ptr<T> try_pop2();
+	bool try_pop3(T& out)
+	{
+		std::lock_guard<std::mutex> lock(mut);
+		if (intern.size > 0)
+		{
+			out = intern.top();
+			//std::unique_ptr<T> result = new T(intern.top());
+			intern.pop();
+			return true;
+		}
+		else
+			return false;
+	};
+
+
+private:
+	std::stack<T> intern;
+	std::mutex mut;
+	std::condition_variable condVar;
+};
+
+int main()
+{
+	
+
+	return 0;
+}
