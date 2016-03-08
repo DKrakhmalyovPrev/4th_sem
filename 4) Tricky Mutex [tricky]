@@ -1,0 +1,27 @@
+//Рассмотрим следующую реализацию мьютекса:
+
+
+class tricky_mutex {
+public:
+   tricky_mutex() : thread_count(0)   {}
+
+   void lock() {
+       while (thread_count.fetch_add(1) > 0) {
+           thread_count.fetch_sub(1);
+       }
+   }
+
+   void unlock() {
+       thread_count.fetch_sub(1);
+   }
+
+private:
+   std::atomic<int> thread_count;
+};
+/*
+Проблема взаимного исключения не решена:
+Поток 1 лочит процесс -- переменная == 1
+Второй поток лочит процесс -- переменная == 2, входит в цикл, переменная == 1
+Первый процесс выходит из цикла -- переменная == 0
+
+*/
