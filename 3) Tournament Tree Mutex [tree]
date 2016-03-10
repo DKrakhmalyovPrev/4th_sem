@@ -1,0 +1,97 @@
+/*
+Идея турнира для всех потоков состоит в том, что в каждом узле(кроме листьев) содержится отдельный мьютекс петерсона. 
+Во время вызова lock() поток продвигается по дереву вверх, пока не дойдёт до заблокированного мьютекса не останется ждать.
+Первый вошедший в дорвэй поток соответственно оказывается в вершине дерева, выходит из цикла и начинает выполняться. По завершении 
+вызывается анлок, который спускает поток обратно, параллельно давая остальным встречным выбраться наверх(для обеспечения однозначности 
+разбора в мьютексе петерсона добавлен флажок "пришёл из левого/правого потомка". Таким образом, будут обеспечены все требования к многопоточным
+программам(за исключением, возможно, честности)
+
+*/
+
+#include <iostream> 
+#include <thread>
+#include <vector>
+#include <mutex>
+#include <atomic>
+#include<array>
+
+class p_mutex {
+public:
+	p_mutex()
+	{
+		want[0].store(false);
+		want[1].store(false);
+		victim.store(0);
+	}
+
+	void lock(int t)
+	{
+		want[t].store(true);
+		victim.store(t);
+		while (want[1 - t].load() && victim.load() == t) {}
+		whichislocked.fetch_sub(t + 1);
+	}
+
+	void unlock(int t) {
+		want[t].store(false);
+		whichislocked.fetch_add(t + 1);
+	}
+
+	std::atomic<int> WIS()
+	{
+		return(whichislocked.load());
+	}
+
+private:
+	std::array<std::atomic<bool>, 2> want;
+	std::atomic<int> victim;
+	std::atomic<int> whichislocked;
+};
+
+class tree_mutex
+{
+public:
+	tree_mutex::tree_mutex(std::size_t num_threads)
+	{
+		p_mutex mut;
+		for (int i = 0; i < num_threads; i++)
+			tree.push_back(mut);
+
+	}
+
+	void tree_mutex::lock(std::size_t thread_index)
+	{
+		while (thread_index != 0)
+		{
+			if ((thread_index / 2) * 2 + 1 == thread_index)
+				tree[thread_index-1 / 2].lock(0);
+			else
+				tree[thread_index-1 / 2].lock(1);
+			thread_index = (thread_index - 1) / 2;
+
+		}
+		
+	}
+
+	void tree_mutex::unlock(std::size_t thread_index)
+	{
+		int i = 0;
+		while (i < thread_index)
+		{
+			if (tree[i].WIS() == 1)
+			{
+				tree[i].unlock(0);
+				i = i * 2 + 1;
+			}
+			else
+			{
+				tree[i].unlock(1);
+				i = i * 2 + 2;
+			}
+		}
+	}
+
+private:
+	unsigned int thread_index;
+	std::vector<p_mutex> tree;
+};
