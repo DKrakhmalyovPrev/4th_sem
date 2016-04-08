@@ -1,0 +1,97 @@
+#include<iostream>
+#include<atomic>
+#include<thread>
+
+class TASSpin
+{
+public:
+	TASSpin()
+	{
+		counter.clear();
+	};
+
+	void lock()
+	{
+		while(counter.test_and_set()){}
+	}	
+
+	void unlock()
+	{
+		counter.clear();
+	}
+private:
+	std::atomic_flag counter;
+};
+
+int x;
+TASSpin ourS;
+
+void inc()
+{
+	for(int i=0;i<1000;i++)
+	{
+		ourS.lock();
+		x++;
+		ourS.unlock();
+	}
+
+	std::cout<<"Stop"<<std::endl;
+}
+
+class TATASSpin
+{
+public:
+	TATASSpin(){}
+
+	void lock()
+	{
+		while(1)
+		{
+			while(counter.load())
+			{
+				bool q=false;
+				if( counter.compare_exchange_weak(q,true))
+				break;
+			}
+		}
+	}
+	void unlock()
+	{
+		counter.store(false);
+	}
+	
+private:
+	std::atomic<bool> counter;
+};
+
+int x2;
+TATASSpin ourS2;
+
+void inc2()
+{
+	for(int i=0;i<1000;i++)
+	{
+		ourS2.lock();
+		x2++;
+		ourS2.unlock();
+	}
+
+	std::cout<<"Stop2"<<std::endl;
+}
+int main()
+{
+
+	std::thread t1(inc);
+	std::thread t2(inc);
+	t1.join();
+	t2.join();
+	std::cout<<x<<std::endl;
+
+	std::thread t3(inc2);
+	std::thread t4(inc2);
+	t3.join();
+	t4.join();
+	std::cout<<x2<<std::endl;
+	
+	return(0);
+}
