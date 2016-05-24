@@ -1,0 +1,70 @@
+#include <queue>
+#include <utility>
+#include <mutex>
+#include <condition_variable>
+
+template<typename T>
+class thread_safe_queue{
+public:
+	thread_safe_queue(std::size_t capacity);
+	void enqueue(T& item);
+	bool pop(T& item);
+	void shutdown();
+	void operator=(const thread_safe_queue&) = delete; //prohibited
+	thread_safe_queue(const thread_safe_queue&) = delete;
+private:
+	bool blocked;
+	std::queue<T> queue;
+	std::mutex mut;
+	std::condition_variable not_empty_cv;
+	std::condition_variable not_full_cv;
+	const std::size_t capacity;
+
+};
+
+template<typename T>
+thread_safe_queue<T>::thread_safe_queue(std::size_t capacity = 20) : queue(std::queue<T>()), capacity(capacity) {
+}
+
+
+template<typename T>
+bool thread_safe_queue<T>::pop(T& item){
+	std::unique_lock<std::mutex> lock(mut);
+
+	while (queue.empty() && !blocked) {
+		not_empty_cv.wait(lock);
+	}
+
+	if (blocked && queue.empty()) {
+		return false;
+	}
+	else {
+		item = std::move(queue.front());
+		queue.pop();
+		not_full_cv.notify_one();
+		return true;
+	}
+}
+
+template<typename T>
+void thread_safe_queue<T>::shutdown(){
+        {
+            std::unique_lock<std::mutex> lock(mut);
+            blocked = true;
+        }
+        not_empty_cv.notify_all();
+    }
+
+template<typename T>
+void thread_safe_queue<T>::enqueue(T& item) {
+	std::unique_lock<std::mutex> lock(mut);
+
+	if (!blocked){
+		while (queue.size() >= capacity) {
+			not_full_cv.wait(lock);
+		}
+
+		queue.push(std::move(item));
+		not_empty_cv.notify_one();
+	}
+}
