@@ -1,0 +1,51 @@
+#include "thread_safe_queue.h"
+#include <thread>
+#include <future>
+
+template<typename ResultType>
+class task_queue{
+private:
+	std::vector<std::thread> workerThreads;
+	thread_safe_queue<std::packaged_task<ResultType()> >queue;
+
+	static void task_queue<ResultType>::newWorkerFunc(thread_safe_queue<std::packaged_task<ResultType()> > &q){
+		std::packaged_task<ResultType()> task;
+
+		while (q.pop(task)){			
+			task();
+		}
+
+		return;
+	};
+
+public:
+	task_queue(int);
+	std::future<ResultType> submit(std::function<ResultType()>);
+	void shutdown();
+};
+
+
+template<typename ResultType>
+task_queue<ResultType>::task_queue(int num_threads = int(std::thread::hardware_concurrency())) : workerThreads(num_threads), queue(thread_safe_queue<std::packaged_task<ResultType()> >(20)) {
+	for (unsigned i = 0; i < workerThreads.size(); i++)
+		workerThreads[i] = std::thread(newWorkerFunc, std::ref(queue));
+}
+
+template<typename ResultType>
+std::future<ResultType> task_queue<ResultType>::submit(std::function<ResultType()> function){
+	std::packaged_task<ResultType()> task(function);
+
+	auto future = task.get_future();
+
+	queue.enqueue(task);
+	
+	return future;
+}
+
+template<typename ResultType>
+void task_queue<ResultType>::shutdown() {
+	queue.shutdown();
+
+	for (unsigned i = 0; i < workerThreads.size(); i++)
+		workerThreads[i].join();
+}
