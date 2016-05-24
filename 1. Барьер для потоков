@@ -1,0 +1,40 @@
+#include <mutex>
+#include <condition_variable>
+
+class barrier
+{
+public:
+	explicit barrier(size_t num_threads);
+	barrier(const barrier& other) = delete;
+
+	void enter();
+
+private:
+	size_t num_threads;
+	size_t amount_wait;
+	size_t era;
+	std::mutex mtx;
+	std::condition_variable cv;
+};
+
+barrier::barrier(size_t num_threads) :
+num_threads(num_threads), amount_wait(0), era(0) {}
+
+void barrier::enter()
+{
+	std::unique_lock<std::mutex> lock(mtx);
+	size_t cur_era = era;
+	++amount_wait;
+
+	if (amount_wait >= num_threads)
+	{
+		++era;
+		amount_wait -= num_threads;
+		cv.notify_all();
+	}
+
+	while (era == cur_era)
+	{
+		cv.wait(lock);
+	}
+}
