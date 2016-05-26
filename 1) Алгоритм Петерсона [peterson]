@@ -5,7 +5,7 @@
 #include <atomic>
 #include<array>
 
-//Построим "неправильный" мьютекс из задания
+//Построим "неправильный" мьютекс из задания.
 class peterson_mutex {
 	 public: 
 		 peterson_mutex() 
